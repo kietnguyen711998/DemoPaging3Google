@@ -9,4 +9,6 @@ import com.example.demopaging3google.model.Repo
 interface RepoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(repos: List<Repo>)
+
+
 }
