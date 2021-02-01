@@ -1,10 +1,12 @@
 package com.example.demopaging3google.data
 
+import android.util.Log
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
 import com.example.demopaging3google.api.GithubService
+import com.example.demopaging3google.api.IN_QUALIFIER
 import com.example.demopaging3google.db.RemoteKeys
 import com.example.demopaging3google.db.RepoDatabase
 import com.example.demopaging3google.model.Repo
@@ -37,9 +39,27 @@ class GithubRemoteMediator(
                 remoteKeys.prevKey
             }
             LoadType.APPEND -> {
-
+                val remoteKeys = getRemoteKeyForLastItem(state)
+                if (remoteKeys == null || remoteKeys.nextKey == null){
+                    throw InvalidObjectException("Error !!")
+                }
+                remoteKeys.nextKey
             }
 
+        }
+
+        val apiQuery = query + IN_QUALIFIER
+
+        try {
+
+        }catch (e: RemoteMediator){
+            Log.d("xxx", "load: ${e.message.toString()}")
+        }
+    }
+
+    private suspend fun getRemoteKeyForLastItem(state: PagingState<Int, Repo> ) :RemoteKeys?{
+        return state.pages.lastOrNull{it.data.isNotEmpty()}?.data?.lastOrNull().let { repos ->
+            repoDatabase.RemoteKeyDao().remoteRepoId(repos?.id)
         }
     }
 

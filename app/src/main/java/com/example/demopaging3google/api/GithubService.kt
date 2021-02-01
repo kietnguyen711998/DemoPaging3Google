@@ -6,7 +6,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
-
+const val IN_QUALIFIER = "in:name,description"
 interface GithubService {
     @GET("search/repositories?sort=stars")
     suspend fun searchRepos(
