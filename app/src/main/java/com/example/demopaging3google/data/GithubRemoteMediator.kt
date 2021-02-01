@@ -15,6 +15,7 @@ import java.io.IOException
 import java.io.InvalidObjectException
 
 private const val PAGING_INDEX = 1
+private const val GITHUB_STARTING_PAGE_INDEX = 1
 
 @ExperimentalPagingApi
 class GithubRemoteMediator(
@@ -32,7 +33,7 @@ class GithubRemoteMediator(
             LoadType.PREPEND -> {
                 val remoteKeys = getRemoteKeysForFirstItem(state)
                 if (remoteKeys == null) {
-                    throw InvalidObjectException("Error !!!")
+                    throw InvalidObjectException("Remote key and the prevKey should not be null")
                 }
                 val preKey = remoteKeys.prevKey
                 if (preKey == null) {
@@ -43,11 +44,10 @@ class GithubRemoteMediator(
             LoadType.APPEND -> {
                 val remoteKeys = getRemoteKeyForLastItem(state)
                 if (remoteKeys == null || remoteKeys.nextKey == null) {
-                    throw InvalidObjectException("Error !!")
+                    throw InvalidObjectException("Remote key should not be null for $loadType")
                 }
                 remoteKeys.nextKey
             }
-
         }
 
         val apiQuery = query + IN_QUALIFIER
@@ -57,7 +57,16 @@ class GithubRemoteMediator(
             val repos = apiResponse.items
             val endOfPaginationReached = repos.isEmpty()
             repoDatabase.withTransaction {
-               /* repos.*/
+                // clear all tables in the database
+                if (loadType == LoadType.REFRESH) {
+                    repoDatabase.RemoteKeyDao().clearRemoteKeys()
+                    val prevKey = if (page == PAGING_INDEX) null else page - 1
+                    val nextKey = if (endOfPaginationReached) null else +1
+                    val keys = repos.map {
+                        RemoteKeys(repoId = it.id, prevKey = prevKey, nextKey = nextKey)
+                    }
+                    repoDatabase.RemoteKeyDao().insertAll(keys)
+                }
             }
 
             return MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
