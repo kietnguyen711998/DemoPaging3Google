@@ -1,15 +1,17 @@
 package com.example.demopaging3google.data
 
-import android.util.Log
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
+import androidx.room.withTransaction
 import com.example.demopaging3google.api.GithubService
 import com.example.demopaging3google.api.IN_QUALIFIER
 import com.example.demopaging3google.db.RemoteKeys
 import com.example.demopaging3google.db.RepoDatabase
 import com.example.demopaging3google.model.Repo
+import retrofit2.HttpException
+import java.io.IOException
 import java.io.InvalidObjectException
 
 private const val PAGING_INDEX = 1
@@ -29,18 +31,18 @@ class GithubRemoteMediator(
             }
             LoadType.PREPEND -> {
                 val remoteKeys = getRemoteKeysForFirstItem(state)
-                if (remoteKeys == null){
+                if (remoteKeys == null) {
                     throw InvalidObjectException("Error !!!")
                 }
                 val preKey = remoteKeys.prevKey
-                if (preKey == null){
+                if (preKey == null) {
                     return MediatorResult.Success(endOfPaginationReached = true)
                 }
                 remoteKeys.prevKey
             }
             LoadType.APPEND -> {
                 val remoteKeys = getRemoteKeyForLastItem(state)
-                if (remoteKeys == null || remoteKeys.nextKey == null){
+                if (remoteKeys == null || remoteKeys.nextKey == null) {
                     throw InvalidObjectException("Error !!")
                 }
                 remoteKeys.nextKey
@@ -51,14 +53,23 @@ class GithubRemoteMediator(
         val apiQuery = query + IN_QUALIFIER
 
         try {
+            val apiResponse = service.searchRepos(apiQuery, PAGING_INDEX, state.config.pageSize)
+            val repos = apiResponse.items
+            val endOfPaginationReached = repos.isEmpty()
+            repoDatabase.withTransaction {
+               /* repos.*/
+            }
 
-        }catch (e: RemoteMediator){
-            Log.d("xxx", "load: ${e.message.toString()}")
+            return MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
+        } catch (exception: IOException) {
+            return MediatorResult.Error(exception)
+        } catch (exception: HttpException) {
+            return MediatorResult.Error(exception)
         }
     }
 
-    private suspend fun getRemoteKeyForLastItem(state: PagingState<Int, Repo> ) :RemoteKeys?{
-        return state.pages.lastOrNull{it.data.isNotEmpty()}?.data?.lastOrNull().let { repos ->
+    private suspend fun getRemoteKeyForLastItem(state: PagingState<Int, Repo>): RemoteKeys? {
+        return state.pages.lastOrNull { it.data.isNotEmpty() }?.data?.lastOrNull().let { repos ->
             repoDatabase.RemoteKeyDao().remoteRepoId(repos?.id)
         }
     }
