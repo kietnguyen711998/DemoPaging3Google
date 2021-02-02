@@ -7,8 +7,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.demopaging3google.R
 
 class ReposAdapter : PagingDataAdapter<UiModel, RecyclerView.ViewHolder>(UIMODEL_COMPARATOR) {
-
-
     companion object {
         private val UIMODEL_COMPARATOR = object : DiffUtil.ItemCallback<UiModel>() {
             override fun areItemsTheSame(oldItem: UiModel, newItem: UiModel): Boolean {

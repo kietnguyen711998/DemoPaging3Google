@@ -27,11 +27,11 @@ class GithubRemoteMediator(
     override suspend fun load(loadType: LoadType, state: PagingState<Int, Repo>): MediatorResult {
         val page = when (loadType) {
             LoadType.REFRESH -> {
-                val remoteKeys = getRemoteKeysCurrentPosition(state)
+                val remoteKeys = getRemoteKeyClosestToCurrentPosition(state)
                 remoteKeys?.nextKey?.minus(1) ?: PAGING_INDEX
             }
             LoadType.PREPEND -> {
-                val remoteKeys = getRemoteKeysForFirstItem(state)
+                val remoteKeys = getRemoteKeyForFirstItem(state)
                 if (remoteKeys == null) {
                     throw InvalidObjectException("Remote key and the prevKey should not be null")
                 }
@@ -78,21 +78,33 @@ class GithubRemoteMediator(
     }
 
     private suspend fun getRemoteKeyForLastItem(state: PagingState<Int, Repo>): RemoteKeys? {
-        return state.pages.lastOrNull { it.data.isNotEmpty() }?.data?.lastOrNull().let { repos ->
-            repoDatabase.RemoteKeyDao().remoteRepoId(repos?.id)
-        }
+        // Get the last page that was retrieved, that contained items.
+        // From that last page, get the last item
+        return state.pages.lastOrNull() { it.data.isNotEmpty() }?.data?.lastOrNull()
+            ?.let { repo ->
+                // Get the remote keys of the last item retrieved
+                repoDatabase.RemoteKeyDao().remoteKeysRepoId(repo.id)
+            }
     }
 
-    private suspend fun getRemoteKeysForFirstItem(state: PagingState<Int, Repo>): RemoteKeys? {
-        return state.pages.firstOrNull { it.data.isNotEmpty() }?.data?.firstOrNull().let { repo ->
-            repoDatabase.RemoteKeyDao().remoteRepoId(repo?.id)
-        }
+    private suspend fun getRemoteKeyForFirstItem(state: PagingState<Int, Repo>): RemoteKeys? {
+        // Get the first page that was retrieved, that contained items.
+        // From that first page, get the first item
+        return state.pages.firstOrNull { it.data.isNotEmpty() }?.data?.firstOrNull()
+            ?.let { repo ->
+                // Get the remote keys of the first items retrieved
+                repoDatabase.RemoteKeyDao().remoteKeysRepoId(repo.id)
+            }
     }
 
-    private suspend fun getRemoteKeysCurrentPosition(stage: PagingState<Int, Repo>): RemoteKeys? {
-        return stage.anchorPosition?.let { postion ->
-            stage.closestItemToPosition(postion)?.id.let { repoId ->
-                repoDatabase.RemoteKeyDao().remoteRepoId(repoId)
+    private suspend fun getRemoteKeyClosestToCurrentPosition(
+        state: PagingState<Int, Repo>
+    ): RemoteKeys? {
+        // The paging library is trying to load data after the anchor position
+        // Get the item closest to the anchor position
+        return state.anchorPosition?.let { position ->
+            state.closestItemToPosition(position)?.id?.let { repoId ->
+                repoDatabase.RemoteKeyDao().remoteKeysRepoId(repoId)
             }
         }
     }
